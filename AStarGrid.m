@@ -1,5 +1,5 @@
-function [route,numExpanded] = DijkstraGrid (input_map, start_coords, dest_coords)
-% Run Dijkstra's algorithm on a grid.
+function [route,numExpanded] = AStarGrid (input_map, start_coords, dest_coords)
+% Run A* algorithm on a grid.
 % Inputs : 
 %   input_map : a logical array where the freespace cells are false or 0 and
 %   the obstacles are true or 1
@@ -10,8 +10,7 @@ function [route,numExpanded] = DijkstraGrid (input_map, start_coords, dest_coord
 %    shortest route from start to dest or an empty array if there is no
 %    route. This is a single dimensional vector
 %    numExpanded: Remember to also return the total number of nodes
-%    expanded during your search. Do not count the goal node as an expanded node.
-
+%    expanded during your search. Do not count the goal node as an expanded node. 
 
 % set up color map for display
 % 1 - white - clear cell
@@ -22,12 +21,12 @@ function [route,numExpanded] = DijkstraGrid (input_map, start_coords, dest_coord
 % 6 - yellow - destination
 
 cmap = [1 1 1; ...
-        0 0 0; ...
-        1 0 0; ...
-        0 0 1; ...
-        0 1 0; ...
-        1 1 0; ...
-	0.5 0.5 0.5];
+    0 0 0; ...
+    1 0 0; ...
+    0 0 1; ...
+    0 1 0; ...
+    1 1 0; ...
+    0.5 0.5 0.5];
 
 colormap(cmap);
 
@@ -50,18 +49,33 @@ dest_node  = sub2ind(size(map), dest_coords(1),  dest_coords(2));
 map(start_node) = 5;
 map(dest_node)  = 6;
 
-% Initialize distance array
-distanceFromStart = Inf(nrows,ncols);
-
-% For each grid cell this array holds the index of its parent
+% meshgrid will `replicate grid vectors' nrows and ncols to produce
+% a full grid
+% type `help meshgrid' in the Matlab command prompt for more information
 parent = zeros(nrows,ncols);
 
-distanceFromStart(start_node) = 0;
+% 
+[X, Y] = meshgrid (1:ncols, 1:nrows);
 
-% keep track of number of nodes expanded 
+xd = dest_coords(1);
+yd = dest_coords(2);
+
+% Evaluate Heuristic function, H, for each grid cell
+% Manhattan distance
+H = abs(X - xd) + abs(Y - yd);
+H = H';
+% Initialize cost arrays
+f = Inf(nrows,ncols);
+g = Inf(nrows,ncols);
+
+g(start_node) = 0;
+f(start_node) = H(start_node);
+
+% keep track of the number of nodes that are expanded
 numExpanded = 0;
 
 % Main Loop
+
 while true
     
     % Draw current map
@@ -77,55 +91,58 @@ while true
         drawnow;
     end
     
-    % Find the node with the minimum distance
-    [min_dist, current] = min(distanceFromStart(:));
+    % Find the node with the minimum f value
+    [min_f, current] = min(f(:));
     
-    if ((current == dest_node) || isinf(min_dist))
+    if ((current == dest_node) || isinf(min_f))
         break;
     end
-    
-    % Update map
-    map(current) = 3;         % mark current node as visited
-    distanceFromStart(current) = Inf; % remove this node from further consideration
     numExpanded = numExpanded +1;
+    % Update input_map
+    map(current) = 3;
+    f(current) = Inf; % remove this node from further consideration
+    
     % Compute row, column coordinates of current node
-    [i, j] = ind2sub(size(distanceFromStart), current);
+    [i, j] = ind2sub(size(f), current);
     
-    
-    % Visit each neighbor of the current node and update the map, distances
-    % and parent tables appropriately.
-    if ((i + 1) <= nrows) && (distanceFromStart(i+1, j) > (min_dist + 1)) && (map(i+1, j) ~= 2) && (map(i+1,j) ~= 3) && (map(i+1,j) ~= 5)
-        distanceFromStart(i+1, j) = min_dist + 1;
+    % Visit all of the neighbors around the current node and update the
+    % entries in the map, f, g and parent arrays
+    %
+if ((i + 1) <= nrows) && (g(i+1, j) > (g(current) + 1)) && (map(i+1, j) ~= 2) && (map(i+1,j) ~= 3) && (map(i+1,j) ~= 5)
+        g(i+1, j) = g(current) + 1;
+        f(i+1, j) = g(i+1, j) + H(i+1, j);
         parent(i+1, j) = current;
         map(i+1, j) = 4;
-    end
+end
     
-    if ((i - 1) >      0) && (distanceFromStart(i-1, j) > (min_dist + 1)) && (map(i-1, j) ~= 2) && (map(i-1,j) ~= 3) && (map(i-1,j) ~= 5)
-        distanceFromStart(i-1, j) = min_dist + 1;
+if ((i - 1) >      0) && (g(i-1, j) > (g(current) + 1)) && (map(i-1, j) ~= 2) && (map(i-1,j) ~= 3) && (map(i-1,j) ~= 5)
+        g(i-1, j) = g(current) + 1;
+        f(i-1, j) = g(i-1, j) + H(i-1, j);
         parent(i-1, j) = current;
         map(i-1, j) = 4;
-    end
+end
     
-    if ((j - 1)>      0) && (distanceFromStart(i, j-1) > (min_dist + 1)) && (map(i, j-1) ~= 2) && (map(i,j-1) ~= 3) && (map(i,j - 1) ~= 5)
-        distanceFromStart(i, j-1) = min_dist + 1;
+if ((j - 1)>      0) && (g(i, j-1) > (g(current) + 1)) && (map(i, j-1) ~= 2) && (map(i,j-1) ~= 3) && (map(i,j - 1) ~= 5)
+        g(i, j-1) = g(current) + 1;
+        f(i, j-1) = g(i, j-1) + H(i, j-1);
         parent(i, j-1) = current;
         map(i, j-1) = 4;
-    end
+end
     
-    if ((j + 1)<= ncols) && (distanceFromStart(i, j+1) > (min_dist + 1)) && (map(i, j+1) ~= 2) && (map(i,j+1) ~= 3) && (map(i,j+1) ~= 5)
-        distanceFromStart(i, j+1) = min_dist + 1;
+if ((j + 1)<= ncols) && (g(i, j+1) > (g(current) + 1)) && (map(i, j+1) ~= 2) && (map(i,j+1) ~= 3) && (map(i,j+1) ~= 5)
+        g(i, j+1) = g(current) + 1;
+        f(i, j+1) = g(i, j+1) + H(i, j+1);
         parent(i, j+1) = current;
         map(i, j+1) = 4;
-    end
-    
-    
+end    
     
     %*********************************************************************
-
+    
+    
 end
 
 %% Construct route from start to dest by following the parent links
-if (isinf(distanceFromStart(dest_node)))
+if (isinf(f(dest_node)))
     route = [];
 else
     route = [dest_node];
@@ -133,8 +150,8 @@ else
     while (parent(route(1)) ~= 0)
         route = [parent(route(1)), route];
     end
-    
-        % Snippet of code used to visualize the map and the path
+
+    % Snippet of code used to visualize the map and the path
     for k = 2:length(route) - 1        
         map(route(k)) = 7;
         pause(0.1);
